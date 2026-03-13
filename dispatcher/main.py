@@ -20,7 +20,12 @@ async def tickets():
 
 @app.get("/users")
 async def users():
-    return {"message": "User servisine yönlendirilecek."}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://user_service:8000/users")
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
 @app.get("/auth")
