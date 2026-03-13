@@ -13,3 +13,7 @@ async def tickets():
 @app.get("/users")
 async def users():
     return {"message": "User servisine yönlendirilecek."}
+
+@app.get("/auth")
+async def auth():
+    return {"message": "Auth servisine yönlendirilecek."}
