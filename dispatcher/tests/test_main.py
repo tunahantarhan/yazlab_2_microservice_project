@@ -12,3 +12,7 @@ def test_read_main():
 def test_tickets_route_exists():
     response = client.get("/tickets")
     assert response.status_code == 200
+    
+def test_users_route_exists():
+    response = client.get("/users")
+    assert response.status_code == 200
