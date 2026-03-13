@@ -27,3 +27,7 @@ def test_dispatcher_forwards_tickets_request():
 def test_dispatcher_forwards_users_request():
     response = client.get("/users")
     assert response.status_code == 200
+
+def test_dispatcher_forwards_auth_request():
+    response = client.get("/auth")
+    assert response.status_code == 200
