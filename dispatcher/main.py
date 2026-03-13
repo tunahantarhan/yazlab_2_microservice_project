@@ -30,4 +30,9 @@ async def users():
 
 @app.get("/auth")
 async def auth():
-    return {"message": "Auth servisine yönlendirilecek."}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://auth_service:8000/auth")
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
