@@ -23,3 +23,7 @@ def test_auth_route_exists():
 def test_dispatcher_forwards_tickets_request():
     response = client.get("/tickets")
     assert response.status_code == 200
+
+def test_dispatcher_forwards_users_request():
+    response = client.get("/users")
+    assert response.status_code == 200
