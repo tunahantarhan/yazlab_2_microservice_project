@@ -1,0 +1,23 @@
+version: '3.8'
+
+  # her servisin kendi database'ini görmesi için izole yapı
+services:
+  ticket_db:
+    image: mongo:latest
+    container_name: ticket_db
+    ports:
+      - "27017:27017" # standart port
+    volumes:
+      - ticket_db_data:/data/db
+
+  user_db:
+    image: mongo:latest
+    container_name: user_db
+    ports:
+      - "27018:27017" # ticket service database'i ile çakışmaması için 27018 portundan bağlanacak
+    volumes:
+      - user_db_data:/data/db
+
+volumes:
+  ticket_db_data:
+  user_db_data:
