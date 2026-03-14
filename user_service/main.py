@@ -1,16 +1,9 @@
 from fastapi import FastAPI, status, HTTPException
-from pydantic import BaseModel
 from typing import Optional
+from .models import User # pydantic modeli models.py'den import ediliyor
 
 app = FastAPI()
 users_root = "/profile"
-
-# pydantic modeli
-class UserProfile(BaseModel):
-    username: str
-    email: str
-    full_name: Optional[str] = None
-    is_active: bool = True
 
 # mongodb ile gerçek db bağlanana kadar mock veriler
 fake_user_db = {

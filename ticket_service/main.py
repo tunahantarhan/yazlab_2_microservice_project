@@ -1,16 +1,9 @@
 from fastapi import FastAPI, status, HTTPException
-from pydantic import BaseModel
 from typing import List
+from .models import Ticket # pydantic modeli models.py'den import ediliyor
 
 app = FastAPI()
 tickets_root = "/tickets"
-
-# pydantic modeli
-class Ticket(BaseModel):
-    id: int
-    event_name: str
-    price: float
-    available: bool
 
 # nosql database bağlanana kadar mock veriler
 fake_tickets_db = [
