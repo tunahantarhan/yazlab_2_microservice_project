@@ -41,7 +41,10 @@ class MockTicketsAsyncClient:
 def test_dispatcher_forwards_tickets_request(monkeypatch):
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockTicketsAsyncClient)
 
-    response = client.get("/tickets")
+    response = client.get(
+        "/tickets",
+        headers={"Authorization": "Bearer test"}
+    )
 
     assert response.status_code == 200
     assert response.json() == [
@@ -76,7 +79,10 @@ class MockUsersAsyncClient:
 def test_dispatcher_forwards_users_request(monkeypatch):
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockUsersAsyncClient)
 
-    response = client.get("/users")
+    response = client.get(
+        "/users",
+        headers={"Authorization": "Bearer test"}
+    )
 
     assert response.status_code == 200
     assert response.json() == [
@@ -87,6 +93,7 @@ def test_dispatcher_forwards_users_request(monkeypatch):
             "balance": 500.0
         }
     ]
+
 
 class FailingAsyncClient:
     async def __aenter__(self):
@@ -102,15 +109,21 @@ class FailingAsyncClient:
 def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
     monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
 
-    response = client.get("/tickets")
+    response = client.get(
+        "/tickets",
+        headers={"Authorization": "Bearer test"}
+    )
 
     assert response.status_code == 502
-    
+
 
 def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
     monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
 
-    response = client.get("/users")
+    response = client.get(
+        "/users",
+        headers={"Authorization": "Bearer test"}
+    )
 
     assert response.status_code == 502
 
@@ -118,3 +131,11 @@ def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
 def test_request_without_token_returns_401():
     response = client.get("/tickets")
     assert response.status_code == 401
+
+
+def test_request_with_invalid_token_returns_403():
+    response = client.get(
+        "/tickets",
+        headers={"Authorization": "Bearer invalid"}
+    )
+    assert response.status_code == 403
