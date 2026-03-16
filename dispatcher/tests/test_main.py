@@ -52,3 +52,38 @@ def test_dispatcher_forwards_tickets_request(monkeypatch):
             "available": True
         }
     ]
+
+
+class MockUsersAsyncClient:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def get(self, url):
+        assert url == "http://user_service:8000/users"
+        return MockResponse([
+            {
+                "id": 1,
+                "username": "selin",
+                "email": "selin@example.com",
+                "balance": 500.0
+            }
+        ])
+
+
+def test_dispatcher_forwards_users_request(monkeypatch):
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockUsersAsyncClient)
+
+    response = client.get("/users")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 1,
+            "username": "selin",
+            "email": "selin@example.com",
+            "balance": 500.0
+        }
+    ]
