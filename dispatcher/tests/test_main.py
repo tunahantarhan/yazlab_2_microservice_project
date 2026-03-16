@@ -105,3 +105,11 @@ def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
     response = client.get("/tickets")
 
     assert response.status_code == 502
+    
+
+def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
+
+    response = client.get("/users")
+
+    assert response.status_code == 502
