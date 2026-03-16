@@ -1,22 +1,23 @@
 from fastapi import FastAPI, status, HTTPException
 from typing import List
 from .models import Ticket # pydantic modeli models.py'den import ediliyor
+from .database import ticket_collection
 
 app = FastAPI()
 tickets_root = "/tickets"
 
-# nosql database bağlanana kadar mock veriler
-fake_tickets_db = [
-    {"id": 1, "event_name": "Yazlab Konseri", "price": 150.0, "available": True},
-    {"id": 2, "event_name": "Mikroservis Filmi", "price": 0.0, "available": True}
-]
-
-# rmm 2 gereği "get" ile root'a erişiyoruz
-@app.get(tickets_root, status_code=status.HTTP_200_OK, response_model=List[Ticket])
-async def list_tickets():
-    if not fake_tickets_db:
-        raise HTTPException(status_code=404, detail="Bilet bulunamadı.")
-    return fake_tickets_db # mock db
+# rmm seviye 2 gereği kayıt eklemek için "post" kullanıyoruz
+@app.post(tickets_root, status_code=status.HTTP_201_CREATED)
+async def create_ticket(ticket: Ticket):
+    # pydantic modeli dictionary olarak alıp mongodb'ye yolluyoruz
+    ticket_dict = ticket.model_dump()
+    
+    result = await ticket_collection.insert_one(ticket_dict)
+    
+    if result.inserted_id:
+        return {"message": "Bilet başarıyla eklendi!", "id": str(result.inserted_id)}
+    
+    raise HTTPException(status_code=500, detail="Bilet veritabanına kaydedilemedi.") 
 
 @app.get("/health")
 async def health_check():
