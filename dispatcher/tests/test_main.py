@@ -113,3 +113,8 @@ def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
     response = client.get("/users")
 
     assert response.status_code == 502
+
+
+def test_request_without_token_returns_401():
+    response = client.get("/tickets")
+    assert response.status_code == 401
