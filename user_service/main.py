@@ -1,22 +1,21 @@
 from fastapi import FastAPI, status, HTTPException
-from typing import Optional
+from typing import List
 from .models import User # pydantic modeli models.py'den import ediliyor
+from .database import user_collection
 
 app = FastAPI()
-users_root = "/profile"
+users_root = "/users"
 
-# mongodb ile gerçek db bağlanana kadar mock veriler
-fake_user_db = {
-    "ogrenci1": {"username": "ogrenci1", "email": "ogrenci@universite.edu.tr", "full_name": "Deneme Kullanıcısı", "is_active": True}
-}
-
-# rmm 2 doğrultusunda "get" ile root'a erişim
-@app.get(f"users_root/{{username}}", status_code=status.HTTP_200_OK, response_model=UserProfile)
-async def get_profile(username: str):
-    user = fake_user_db.get(username)
-    if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
-    return user
+# rmm seviye 2 gereği kullanıcı eklemek için "post" metodunu kullanıyoruz
+@app.post(users_root, status_code=status.HTTP_201_CREATED)
+async def create_user(user: User):
+    user_dict = user.model_dump()
+    result = await user_collection.insert_one(user_dict)
+    
+    if result.inserted_id:
+        return {"message": "Kullanıcı başarıyla eklendi!", "id": str(result.inserted_id)}
+    
+    raise HTTPException(status_code=500, detail="Kullanıcı veritabanına kaydedilemedi.")
 
 @app.get("/health")
 async def health_check():
