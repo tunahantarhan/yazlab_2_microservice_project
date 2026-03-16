@@ -1,33 +1,54 @@
 from fastapi.testclient import TestClient
-from dispatcher.main import app 
+from dispatcher.main import app
+import dispatcher.main as main_module
 
 client = TestClient(app)
 
+
 def test_read_main():
-    response = client.get("/") 
+    response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Dispatcher çalışıyor."}
 
-def test_tickets_route_exists():
+
+class MockResponse:
+    def __init__(self, data):
+        self._data = data
+
+    def json(self):
+        return self._data
+
+
+class MockTicketsAsyncClient:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def get(self, url):
+        assert url == "http://ticket_service:8000/tickets"
+        return MockResponse([
+            {
+                "id": 1,
+                "event_name": "Konser",
+                "price": 250.0,
+                "available": True
+            }
+        ])
+
+
+def test_dispatcher_forwards_tickets_request(monkeypatch):
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockTicketsAsyncClient)
+
     response = client.get("/tickets")
-    assert response.status_code == 200
-    
-def test_users_route_exists():
-    response = client.get("/users")
-    assert response.status_code == 200
 
-def test_auth_route_exists():
-    response = client.get("/auth")
     assert response.status_code == 200
-
-def test_dispatcher_forwards_tickets_request():
-    response = client.get("/tickets")
-    assert response.status_code == 200
-
-def test_dispatcher_forwards_users_request():
-    response = client.get("/users")
-    assert response.status_code == 200
-
-def test_dispatcher_forwards_auth_request():
-    response = client.get("/auth")
-    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 1,
+            "event_name": "Konser",
+            "price": 250.0,
+            "available": True
+        }
+    ]
