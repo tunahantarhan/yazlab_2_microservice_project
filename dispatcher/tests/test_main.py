@@ -87,3 +87,21 @@ def test_dispatcher_forwards_users_request(monkeypatch):
             "balance": 500.0
         }
     ]
+
+class FailingAsyncClient:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+    async def get(self, url):
+        raise Exception("Service down")
+
+
+def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
+
+    response = client.get("/tickets")
+
+    assert response.status_code == 502
