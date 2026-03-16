@@ -17,6 +17,17 @@ async def create_user(user: User):
     
     raise HTTPException(status_code=500, detail="Kullanıcı veritabanına kaydedilemedi.")
 
+# rmm seviye 2 gereği kullanıcıları listelemek için "get" metodunu kullanıyoruz
+@app.get(users_root, status_code=status.HTTP_200_OK, response_model=List[User])
+async def list_users():
+    cursor = user_collection.find({}, {"_id": 0})
+    users = await cursor.to_list(length=100)
+    
+    if not users:
+        raise HTTPException(status_code=404, detail="Sistemde henüz kullanıcı bulunmamaktadır.")
+        
+    return users
+
 @app.get("/health")
 async def health_check():
     return {"status": "User Service sağlıklı durumda."}
