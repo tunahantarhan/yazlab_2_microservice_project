@@ -1,7 +1,21 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 import httpx
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if request.url.path in ["/", "/auth"]:
+        return await call_next(request)
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+
+    return await call_next(request)
+
 
 @app.get("/")
 async def root():
