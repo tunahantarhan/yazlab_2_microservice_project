@@ -14,6 +14,9 @@ async def auth_middleware(request: Request, call_next):
     if not auth_header:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
+    if auth_header != "Bearer valid-token":
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
     return await call_next(request)
 
 
