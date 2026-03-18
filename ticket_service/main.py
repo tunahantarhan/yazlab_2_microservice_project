@@ -1,5 +1,5 @@
 from fastapi import FastAPI, status, HTTPException, Body
-from typing import List
+from typing import List, Optional
 from .models import Ticket # pydantic modeli models.py'den import ediliyor
 from .database import ticket_collection
 
@@ -21,8 +21,13 @@ async def create_ticket(ticket: Ticket):
 
 # RMM Seviye 2 -> biletleri listelemek için "GET" metodu.
 @app.get(tickets_root, status_code=status.HTTP_200_OK, response_model=List[Ticket])
-async def list_tickets():
-    cursor = ticket_collection.find({}, {"_id": 0}) # {"_id": 0} ile mongodb'nin otomatik ürettiği "ObjectId" gizlenir,
+async def list_tickets(available: Optional[bool] = None):
+    # eğer biletler availability'sine göre filtrelenmek istenirse:
+    query = {}
+    if available is not None:
+        query["available"] = available
+        
+    cursor = ticket_collection.find(query, {"_id": 0}) # {"_id": 0} ile mongodb'nin otomatik ürettiği "ObjectId" gizlenir,
     tickets = await cursor.to_list(length=100) # böylece pydantic modelimizdeki kendi "id" verdiğimiz alan ile çakışmaz.
     
     if not tickets:
