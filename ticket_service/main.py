@@ -6,7 +6,7 @@ from .database import ticket_collection
 app = FastAPI()
 tickets_root = "/tickets"
 
-# rmm seviye 2 gereği kayıt eklemek için "post" metodunu kullanıyoruz
+# RMM Seviye 2 -> bilet eklemek için "POST" metodu.
 @app.post(tickets_root, status_code=status.HTTP_201_CREATED)
 async def create_ticket(ticket: Ticket):
     # pydantic modeli dictionary olarak alıp mongodb'ye yolluyoruz
@@ -19,7 +19,7 @@ async def create_ticket(ticket: Ticket):
     
     raise HTTPException(status_code=500, detail="Bilet veritabanına kaydedilemedi.") 
 
-# rmm seviye 2 gereği kayıt listelemek için "get" metodunu kullanıyoruz.
+# RMM Seviye 2 -> biletleri listelemek için "GET" metodu.
 @app.get(tickets_root, status_code=status.HTTP_200_OK, response_model=List[Ticket])
 async def list_tickets():
     cursor = ticket_collection.find({}, {"_id": 0}) # {"_id": 0} ile mongodb'nin otomatik ürettiği "ObjectId" gizlenir,
@@ -30,10 +30,10 @@ async def list_tickets():
         
     return tickets
 
-# rmm seviye 2 gereği kısmi güncelleme işlemleri için "patch" metodunu kullanıyoruz.
+# RMM Seviye 2 -> kısmi güncelleme (bilet availability) işlemleri için "PATCH" metodu.
 @app.patch(f"{tickets_root}/{{ticket_id}}", status_code=status.HTTP_200_OK)
 async def update_ticket_status(ticket_id: int, available: bool = Body(..., embed=True)):
-    # db'de ticket id'si eşleşiyorsa sadece "available" kısmını güncelliyoruz.
+    # id'si eşleşen ticket'ın sadece "available" kısmı güncellenir.
     result = await ticket_collection.update_one(
         {"id": ticket_id},
         {"$set": {"available": available}}

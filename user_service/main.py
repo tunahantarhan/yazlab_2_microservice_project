@@ -1,4 +1,4 @@
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, Body
 from typing import List
 from .models import User # pydantic modeli models.py'den import ediliyor
 from .database import user_collection
@@ -6,7 +6,7 @@ from .database import user_collection
 app = FastAPI()
 users_root = "/users"
 
-# rmm seviye 2 gereği kullanıcı eklemek için "post" metodunu kullanıyoruz
+# RMM Seviye 2 -> kullanıcı eklemek için "POST" metodu.
 @app.post(users_root, status_code=status.HTTP_201_CREATED)
 async def create_user(user: User):
     user_dict = user.model_dump()
@@ -17,7 +17,7 @@ async def create_user(user: User):
     
     raise HTTPException(status_code=500, detail="Kullanıcı veritabanına kaydedilemedi.")
 
-# rmm seviye 2 gereği kullanıcıları listelemek için "get" metodunu kullanıyoruz
+# RMM Seviye 2 -> kullanıcıları listelemek için "GET" metodu.
 @app.get(users_root, status_code=status.HTTP_200_OK, response_model=List[User])
 async def list_users():
     cursor = user_collection.find({}, {"_id": 0})
@@ -27,6 +27,24 @@ async def list_users():
         raise HTTPException(status_code=404, detail="Sistemde henüz kullanıcı bulunmamaktadır.")
         
     return users
+
+# RMM Seviye 2 -> kısmı güncelleme (kullanıcı bakiyesi) işlemleri için "PATCH" metodu.
+@app.patch(f"{users_root}/{{user_id}}", status_code=status.HTTP_200_OK)
+async def update_user_balance(user_id: int, balance: float = Body(..., embed=True)):
+    # id'si eşleşen kullanıcının sadece "balance" kısmı güncellenir.
+    result = await user_collection.update_one(
+        {"id": user_id},
+        {"$set": {"balance": balance}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Güncellenecek kullanıcı bulunamadı.")
+        
+    return {
+        "message": "Kullanıcı bakiyesi başarıyla güncellendi!", 
+        "user_id": user_id, 
+        "new_balance": balance
+    }
 
 @app.get("/health")
 async def health_check():
