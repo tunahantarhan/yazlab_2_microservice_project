@@ -1,4 +1,4 @@
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, Body
 from typing import List
 from .models import Ticket # pydantic modeli models.py'den import ediliyor
 from .database import ticket_collection
@@ -29,6 +29,24 @@ async def list_tickets():
         raise HTTPException(status_code=404, detail="Sistemde henüz bilet bulunmamaktadır.")
         
     return tickets
+
+# rmm seviye 2 gereği kısmi güncelleme işlemleri için "patch" metodunu kullanıyoruz.
+@app.patch(f"{tickets_root}/{{ticket_id}}", status_code=status.HTTP_200_OK)
+async def update_ticket_status(ticket_id: int, available: bool = Body(..., embed=True)):
+    # db'de ticket id'si eşleşiyorsa sadece "available" kısmını güncelliyoruz.
+    result = await ticket_collection.update_one(
+        {"id": ticket_id},
+        {"$set": {"available": available}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Güncellenecek bilet bulunamadı.")
+        
+    return {
+        "message": "Bilet müsaitlik durumu başarıyla güncellendi!", 
+        "ticket_id": ticket_id, 
+        "available": available
+    }
 
 @app.get("/health")
 async def health_check():
