@@ -46,6 +46,17 @@ async def update_user_balance(user_id: int, balance: float = Body(..., embed=Tru
         "new_balance": balance
     }
 
+# RMM Seviye 2 -> kullanıcı kaydı silme işlemleri için "DELETE" metodu.
+@app.delete(f"{users_root}/{{user_id}}", status_code=status.HTTP_200_OK)
+async def delete_user(user_id: int):
+    # id'si eşleşen kullanıcının kaydı silinir.
+    result = await user_collection.delete_one({"id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Silinecek kullanıcı bulunamadı.")
+        
+    return {"message": f"Kullanıcı ID:'{user_id}' başarıyla silindi."}
+
 @app.get("/health")
 async def health_check():
     return {"status": "User Service sağlıklı durumda."}
