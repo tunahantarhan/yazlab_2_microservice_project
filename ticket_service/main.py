@@ -52,6 +52,17 @@ async def update_ticket_status(ticket_id: int, available: bool = Body(..., embed
         "ticket_id": ticket_id, 
         "available": available
     }
+    
+# RMM Seviye 2 -> bilet kaydı silme işlemleri için "DELETE" metodu.
+@app.delete(f"{tickets_root}/{{ticket_id}}", status_code=status.HTTP_200_OK)
+async def delete_ticket(ticket_id: int):
+    # id'si eşleşen biletin kaydı silinir.
+    result = await ticket_collection.delete_one({"id": ticket_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Silinecek bilet bulunamadı.")
+        
+    return {"message": f"Bilet ID:'{ticket_id}' başarıyla silindi."}
 
 @app.get("/health")
 async def health_check():
