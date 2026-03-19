@@ -61,6 +61,18 @@ async def update_ticket(ticket_id: int, data: dict = Body(...)):
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
+@app.delete("/tickets/{ticket_id}")
+async def delete_ticket(ticket_id: int):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"http://ticket_service:8000/tickets/{ticket_id}"
+            )
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
+
+
 @app.get("/users")
 async def users():
     try:
