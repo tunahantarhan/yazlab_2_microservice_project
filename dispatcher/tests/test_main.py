@@ -288,3 +288,29 @@ def test_dispatcher_forwards_update_user_request(monkeypatch):
         "user_id": 1,
         "new_balance": 1000.0
     }
+
+def test_dispatcher_forwards_delete_ticket_request(monkeypatch):
+    class MockDeleteTicketsAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def delete(self, url):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return MockResponse({
+                "message": "Bilet ID:'1' başarıyla silindi."
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteTicketsAsyncClient)
+
+    response = client.delete(
+        "/tickets/1",
+        headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Bilet ID:'1' başarıyla silindi."
+    }
