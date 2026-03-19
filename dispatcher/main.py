@@ -109,6 +109,18 @@ async def update_user(user_id: int, data: dict = Body(...)):
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: int):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"http://user_service:8000/users/{user_id}"
+            )
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
+
+
 @app.get("/auth")
 async def auth():
     try:
