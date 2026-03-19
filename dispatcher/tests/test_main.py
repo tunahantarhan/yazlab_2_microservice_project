@@ -180,3 +180,43 @@ def test_dispatcher_forwards_create_ticket_request(monkeypatch):
         "message": "Bilet başarıyla eklendi!",
         "id": "mock-ticket-id"
     }
+
+def test_dispatcher_forwards_create_user_request(monkeypatch):
+    class MockPostUsersAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def post(self, url, json):
+            assert url == "http://user_service:8000/users"
+            assert json == {
+                "id": 1,
+                "username": "selin",
+                "email": "selin@example.com",
+                "balance": 500.0
+            }
+            return MockResponse({
+                "message": "Kullanıcı başarıyla eklendi!",
+                "id": "mock-user-id"
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostUsersAsyncClient)
+
+    response = client.post(
+        "/users",
+        headers={"Authorization": "Bearer valid-token"},
+        json={
+            "id": 1,
+            "username": "selin",
+            "email": "selin@example.com",
+            "balance": 500.0
+        }
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "message": "Kullanıcı başarıyla eklendi!",
+        "id": "mock-user-id"
+    }
