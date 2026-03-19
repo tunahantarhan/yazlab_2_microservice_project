@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 import httpx
 
@@ -30,6 +30,19 @@ async def tickets():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get("http://ticket_service:8000/tickets")
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
+
+
+@app.post("/tickets", status_code=201)
+async def create_ticket(ticket: dict = Body(...)):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://ticket_service:8000/tickets",
+                json=ticket
+            )
             return response.json()
     except Exception:
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
