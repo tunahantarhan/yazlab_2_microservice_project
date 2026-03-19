@@ -220,3 +220,37 @@ def test_dispatcher_forwards_create_user_request(monkeypatch):
         "message": "Kullanıcı başarıyla eklendi!",
         "id": "mock-user-id"
     }
+
+def test_dispatcher_forwards_update_ticket_request(monkeypatch):
+    class MockPatchTicketsAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def patch(self, url, json):
+            assert url == "http://ticket_service:8000/tickets/1"
+            assert json == {
+                "available": False
+            }
+            return MockResponse({
+                "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
+                "ticket_id": 1,
+                "available": False
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchTicketsAsyncClient)
+
+    response = client.patch(
+        "/tickets/1",
+        headers={"Authorization": "Bearer valid-token"},
+        json={"available": False}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
+        "ticket_id": 1,
+        "available": False
+    }
