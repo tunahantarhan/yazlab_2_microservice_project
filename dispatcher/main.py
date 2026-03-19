@@ -58,6 +58,19 @@ async def users():
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
+@app.post("/users", status_code=201)
+async def create_user(user: dict = Body(...)):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://user_service:8000/users",
+                json=user
+            )
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
+
+
 @app.get("/auth")
 async def auth():
     try:
