@@ -254,3 +254,37 @@ def test_dispatcher_forwards_update_ticket_request(monkeypatch):
         "ticket_id": 1,
         "available": False
     }
+
+def test_dispatcher_forwards_update_user_request(monkeypatch):
+    class MockPatchUsersAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def patch(self, url, json):
+            assert url == "http://user_service:8000/users/1"
+            assert json == {
+                "balance": 1000.0
+            }
+            return MockResponse({
+                "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
+                "user_id": 1,
+                "new_balance": 1000.0
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchUsersAsyncClient)
+
+    response = client.patch(
+        "/users/1",
+        headers={"Authorization": "Bearer valid-token"},
+        json={"balance": 1000.0}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
+        "user_id": 1,
+        "new_balance": 1000.0
+    }
