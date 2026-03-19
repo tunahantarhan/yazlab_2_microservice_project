@@ -48,6 +48,19 @@ async def create_ticket(ticket: dict = Body(...)):
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
+@app.patch("/tickets/{ticket_id}")
+async def update_ticket(ticket_id: int, data: dict = Body(...)):
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                f"http://ticket_service:8000/tickets/{ticket_id}",
+                json=data
+            )
+            return response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
+
+
 @app.get("/users")
 async def users():
     try:
