@@ -314,3 +314,29 @@ def test_dispatcher_forwards_delete_ticket_request(monkeypatch):
     assert response.json() == {
         "message": "Bilet ID:'1' başarıyla silindi."
     }
+
+def test_dispatcher_forwards_delete_user_request(monkeypatch):
+    class MockDeleteUsersAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def delete(self, url):
+            assert url == "http://user_service:8000/users/1"
+            return MockResponse({
+                "message": "Kullanıcı ID:'1' başarıyla silindi."
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteUsersAsyncClient)
+
+    response = client.delete(
+        "/users/1",
+        headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Kullanıcı ID:'1' başarıyla silindi."
+    }
