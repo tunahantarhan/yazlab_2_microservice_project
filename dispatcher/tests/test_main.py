@@ -43,7 +43,7 @@ def test_dispatcher_forwards_tickets_request(monkeypatch):
 
     response = client.get(
         "/tickets",
-        headers={"Authorization": "Bearer test"}
+        headers={"Authorization": "Bearer valid-token"}
     )
 
     assert response.status_code == 200
@@ -81,7 +81,7 @@ def test_dispatcher_forwards_users_request(monkeypatch):
 
     response = client.get(
         "/users",
-        headers={"Authorization": "Bearer test"}
+        headers={"Authorization": "Bearer valid-token"}
     )
 
     assert response.status_code == 200
@@ -111,7 +111,7 @@ def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
 
     response = client.get(
         "/tickets",
-        headers={"Authorization": "Bearer test"}
+        headers={"Authorization": "Bearer valid-token"}
     )
 
     assert response.status_code == 502
@@ -122,7 +122,7 @@ def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
 
     response = client.get(
         "/users",
-        headers={"Authorization": "Bearer test"}
+        headers={"Authorization": "Bearer valid-token"}
     )
 
     assert response.status_code == 502
@@ -139,3 +139,44 @@ def test_request_with_invalid_token_returns_403():
         headers={"Authorization": "Bearer invalid"}
     )
     assert response.status_code == 403
+
+
+def test_dispatcher_forwards_create_ticket_request(monkeypatch):
+    class MockPostTicketsAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def post(self, url, json):
+            assert url == "http://ticket_service:8000/tickets"
+            assert json == {
+                "id": 1,
+                "event_name": "Konser",
+                "price": 250.0,
+                "available": True
+            }
+            return MockResponse({
+                "message": "Bilet başarıyla eklendi!",
+                "id": "mock-ticket-id"
+            })
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostTicketsAsyncClient)
+
+    response = client.post(
+        "/tickets",
+        headers={"Authorization": "Bearer valid-token"},
+        json={
+            "id": 1,
+            "event_name": "Konser",
+            "price": 250.0,
+            "available": True
+        }
+    )
+
+    assert response.status_code == 201
+    assert response.json() == {
+        "message": "Bilet başarıyla eklendi!",
+        "id": "mock-ticket-id"
+    }
