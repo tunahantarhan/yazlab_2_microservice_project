@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status, HTTPException, Body
 from typing import List, Optional
-from .models import Ticket # pydantic modeli models.py'den import ediliyor
-from .database import ticket_collection
+from models import Ticket # pydantic modeli models.py'den import ediliyor
+from database import ticket_collection
 
 app = FastAPI()
 tickets_root = "/tickets"

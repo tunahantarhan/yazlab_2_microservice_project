@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status, HTTPException, Body
 from typing import List
-from .models import User # pydantic modeli models.py'den import ediliyor
-from .database import user_collection
+from models import User # pydantic modeli models.py'den import ediliyor
+from database import user_collection
 
 app = FastAPI()
 users_root = "/users"
