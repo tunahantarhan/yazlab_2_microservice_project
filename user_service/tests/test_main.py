@@ -59,6 +59,8 @@ def test_create_user(mock_insert):
 
     assert response.status_code == 201
     assert response.json()["message"] == "Kullanıcı başarıyla eklendi!"
+    
+    # fonksiyon mongodb'ye göndermeye çalışmış mı?
     mock_insert.assert_called_once_with(new_user_data)
 
 # "patch" ile asenkron olarak user güncellemeyi taklit ediyoruz
@@ -80,3 +82,30 @@ def test_update_user_balance(mock_update):
         {"id": 1},
         {"$set": {"balance": 3000.0}}
     )
+    
+# user silme senaryosu (başarılı senaryo)
+@patch("main.user_collection.delete_one", new_callable=AsyncMock)
+def test_delete_user_success(mock_delete):
+    class MockDeleteResult:
+        deleted_count = 1
+
+    mock_delete.return_value = MockDeleteResult()
+
+    response = client.delete("/users/1")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Kullanıcı ID:'1' başarıyla silindi."
+    mock_delete.assert_called_once_with({"id": 1})
+
+# olmayan user'ı silme senaryosu (başarısız senaryo)
+@patch("main.user_collection.delete_one", new_callable=AsyncMock)
+def test_delete_user_not_found(mock_delete):
+    class MockDeleteResult:
+        deleted_count = 0
+
+    mock_delete.return_value = MockDeleteResult()
+
+    response = client.delete("/users/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Silinecek kullanıcı bulunamadı."
