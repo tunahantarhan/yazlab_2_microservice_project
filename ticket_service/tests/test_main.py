@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from main import app
 from unittest.mock import patch, AsyncMock
 
-client = TestClient(app) # fastapi test client'ı.
+client = TestClient(app) # fastapi test client'ı
 
 # main.py'deki health check rotasına ulaşım
 def test_health_check():
@@ -84,7 +84,7 @@ def test_update_ticket_status(mock_update):
 
     mock_update.return_value = MockUpdateResult()
 
-    # "bilet satma" senaryosu simülasyonu.
+    # "bilet satma" senaryosu simülasyonu
     response = client.patch("/tickets/1", json={"available": False})
 
     assert response.status_code == 200
