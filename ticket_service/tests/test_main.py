@@ -96,3 +96,30 @@ def test_update_ticket_status(mock_update):
         {"id": 1},
         {"$set": {"available": False}}
     )
+    
+# bilet silme senaryosu (başarılı senaryo)
+@patch("main.ticket_collection.delete_one", new_callable=AsyncMock)
+def test_delete_ticket_success(mock_delete):
+    class MockDeleteResult:
+        deleted_count = 1
+
+    mock_delete.return_value = MockDeleteResult()
+
+    response = client.delete("/tickets/1")
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Bilet ID:'1' başarıyla silindi."
+    mock_delete.assert_called_once_with({"id": 1})
+
+# olmayan bileti silme senaryosu (başarısız senaryo)
+@patch("main.ticket_collection.delete_one", new_callable=AsyncMock)
+def test_delete_ticket_not_found(mock_delete):
+    class MockDeleteResult:
+        deleted_count = 0
+
+    mock_delete.return_value = MockDeleteResult()
+
+    response = client.delete("/tickets/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Silinecek bilet bulunamadı."
