@@ -75,3 +75,24 @@ def test_create_ticket(mock_insert):
 
     # fonksiyon mongodb'ye göndermeye çalışmış mı?
     mock_insert.assert_called_once_with(new_ticket_data)
+
+# "patch" ile asenkron olarak bilet güncellemeyi taklit ediyoruz
+@patch("main.ticket_collection.update_one", new_callable=AsyncMock)
+def test_update_ticket_status(mock_update):
+    class MockUpdateResult:
+        matched_count = 1 # "1 bilet bulundu -> güncellendi"
+
+    mock_update.return_value = MockUpdateResult()
+
+    # "bilet satma" senaryosu simülasyonu.
+    response = client.patch("/tickets/1", json={"available": False})
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Bilet müsaitlik durumu başarıyla güncellendi!"
+    assert response.json()["available"] is False
+
+    # "fonksiyon veritabanıyla doğru etkileşime girmiş mi?"
+    mock_update.assert_called_once_with(
+        {"id": 1},
+        {"$set": {"available": False}}
+    )
