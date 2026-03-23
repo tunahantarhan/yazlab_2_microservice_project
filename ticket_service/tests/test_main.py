@@ -49,3 +49,29 @@ def test_list_available_tickets(mock_find):
     assert response.json()[0]["available"] is True
     
     mock_find.assert_called_with({"available": True}, {"_id": 0})
+    
+# "patch" ile bilet eklemeyi taklit ediyoruz
+@patch("main.ticket_collection.insert_one", new_callable=AsyncMock)
+def test_create_ticket(mock_insert):
+    class MockInsertResult:
+        inserted_id = "mocked-mongo-id-999"
+
+    mock_insert.return_value = MockInsertResult()
+
+    # gönderilecek mock bilet
+    new_ticket_data = {
+        "id": 3,
+        "event_name": "Teoman Konseri",
+        "price": 500.0,
+        "available": True
+    }
+
+    response = client.post("/tickets", json=new_ticket_data)
+
+    assert response.status_code == 201
+    
+    assert response.json()["message"] == "Bilet başarıyla eklendi!"
+    assert response.json()["id"] == "mocked-mongo-id-999"
+
+    # fonksiyon mongodb'ye göndermeye çalışmış mı?
+    mock_insert.assert_called_once_with(new_ticket_data)
