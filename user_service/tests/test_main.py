@@ -38,3 +38,45 @@ def test_list_all_users(mock_find):
     assert response.json()[0]["balance"] == 5000.0
     
     mock_find.assert_called_with({}, {"_id": 0})
+    
+# "patch" ile user eklemeyi taklit ediyoruz
+@patch("main.user_collection.insert_one", new_callable=AsyncMock)
+def test_create_user(mock_insert):
+    class MockInsertResult:
+        inserted_id = "mocked-mongo-user-id"
+
+    mock_insert.return_value = MockInsertResult()
+
+    # gönderilecek mock user
+    new_user_data = {
+        "id": 3,
+        "username": "yeni_transfer",
+        "email": "transfer@example.com",
+        "balance": 1500.0
+    }
+
+    response = client.post("/users", json=new_user_data)
+
+    assert response.status_code == 201
+    assert response.json()["message"] == "Kullanıcı başarıyla eklendi!"
+    mock_insert.assert_called_once_with(new_user_data)
+
+# "patch" ile asenkron olarak user güncellemeyi taklit ediyoruz
+@patch("main.user_collection.update_one", new_callable=AsyncMock)
+def test_update_user_balance(mock_update):
+    class MockUpdateResult:
+        matched_count = 1 # "1 user bulundu -> güncellendi"
+
+    mock_update.return_value = MockUpdateResult()
+
+    # bilet satışı sonrası bakiye düşme senaryosu simülasyonu
+    response = client.patch("/users/1", json={"balance": 3000.0})
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Kullanıcı bakiyesi başarıyla güncellendi!" 
+
+    # "fonksiyon veritabanıyla doğru etkileşime girmiş mi?"
+    mock_update.assert_called_once_with(
+        {"id": 1},
+        {"$set": {"balance": 3000.0}}
+    )
