@@ -21,7 +21,7 @@ mock_db_data = [
     {"id": 2, "event_name": "Şampiyonlar Ligi Finali", "price": 5000.0, "available": False}
 ]
 
-# "patch" ile main'deki ticket_collection.find'ı taklit ediyoruz
+# "patch" ile bilet listelemeyi taklit ediyoruz
 @patch("main.ticket_collection.find")
 def test_list_all_tickets(mock_find):
     mock_cursor = AsyncMock()
