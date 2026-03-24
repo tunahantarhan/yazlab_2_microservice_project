@@ -31,7 +31,7 @@ services:
       - user_db
 
 
-dispatcher:
+      dispatcher:
   build: ./dispatcher
   container_name: dispatcher
   ports:
