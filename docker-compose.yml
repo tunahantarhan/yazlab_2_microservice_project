@@ -1,41 +1,37 @@
-# en güncel docker sürümünü kullandığımız için versiyon belirtmeye gerek kalmadı
-
-# her servisin kendi database'ini görmesi için izole yapı
 services:
   ticket_db:
     image: mongo:latest
     container_name: ticket_db
     ports:
-      - "27017:27017" # standart port.
+      - "27017:27017"
 
   user_db:
     image: mongo:latest
     container_name: user_db
     ports:
-      - "27018:27017" # ticket_db ile çakışmaması için 27018 portu.
+      - "27018:27017"
 
   ticket_service:
-      build: ./ticket_service
-      container_name: ticket_service
-      ports:
-        - "8000:8000" # standart fastapi portu.
-      depends_on:
-        - ticket_db
+    build: ./ticket_service
+    container_name: ticket_service
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ticket_db
 
   user_service:
     build: ./user_service
     container_name: user_service
     ports:
-      - "8001:8000" # ticket_service ile çakışmaması için 8001 portu.
+      - "8001:8000"
     depends_on:
       - user_db
 
-
-      dispatcher:
-  build: ./dispatcher
-  container_name: dispatcher
-  ports:
-    - "8002:8000"
-  depends_on:
-    - ticket_service
-    - user_service
+  dispatcher:
+    build: ./dispatcher
+    container_name: dispatcher
+    ports:
+      - "8002:8000"
+    depends_on:
+      - ticket_service
+      - user_service
