@@ -81,7 +81,10 @@ async def users():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get("http://user_service:8000/users")
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
