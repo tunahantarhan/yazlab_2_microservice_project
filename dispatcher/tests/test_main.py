@@ -202,9 +202,9 @@ def test_dispatcher_forwards_create_user_request(monkeypatch):
                 "balance": 500.0
             }
             return MockResponse({
-                "message": "Kullanıcı başarıyla eklendi!",
-                "id": "mock-user-id"
-            })
+        "message": "Kullanıcı başarıyla eklendi!",
+        "id": "mock-user-id"},
+    status_code=201 )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostUsersAsyncClient)
 
