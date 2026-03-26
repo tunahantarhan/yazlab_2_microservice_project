@@ -30,7 +30,10 @@ async def tickets():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get("http://ticket_service:8000/tickets")
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
