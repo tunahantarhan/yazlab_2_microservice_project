@@ -400,3 +400,32 @@ def test_dispatcher_preserves_user_service_404_status(monkeypatch):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
+
+def test_dispatcher_preserves_ticket_post_400_status(monkeypatch):
+    class Mock400Response:
+        status_code = 400
+
+        def json(self):
+            return {"detail": "Invalid ticket data"}
+
+    class MockPostAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def post(self, url, json):
+            assert url == "http://ticket_service:8000/tickets"
+            return Mock400Response()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
+
+    response = client.post(
+        "/tickets",
+        headers={"Authorization": "Bearer valid-token"},
+        json={"wrong": "data"}
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid ticket data"}
