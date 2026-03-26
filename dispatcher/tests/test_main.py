@@ -458,3 +458,32 @@ def test_dispatcher_preserves_user_post_400_status(monkeypatch):
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid user data"}
+
+def test_dispatcher_preserves_ticket_patch_404_status(monkeypatch):
+    class Mock404Response:
+        status_code = 404
+
+        def json(self):
+            return {"detail": "Ticket not found"}
+
+    class MockPatchAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def patch(self, url, json):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return Mock404Response()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchAsyncClient)
+
+    response = client.patch(
+        "/tickets/1",
+        headers={"Authorization": "Bearer valid-token"},
+        json={"available": False}
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ticket not found"}
