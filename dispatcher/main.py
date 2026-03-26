@@ -62,7 +62,10 @@ async def update_ticket(ticket_id: int, data: dict = Body(...)):
                 f"http://ticket_service:8000/tickets/{ticket_id}",
                 json=data
             )
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
