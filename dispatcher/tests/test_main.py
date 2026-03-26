@@ -238,11 +238,14 @@ def test_dispatcher_forwards_update_ticket_request(monkeypatch):
             assert json == {
                 "available": False
             }
-            return MockResponse({
-                "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
-                "ticket_id": 1,
-                "available": False
-            })
+            return MockResponse(
+                {
+                    "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
+                    "ticket_id": 1,
+                    "available": False
+                },
+                status_code=200
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchTicketsAsyncClient)
 
