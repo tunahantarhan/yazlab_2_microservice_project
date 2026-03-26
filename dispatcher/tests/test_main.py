@@ -162,9 +162,9 @@ def test_dispatcher_forwards_create_ticket_request(monkeypatch):
                 "available": True
             }
             return MockResponse({
-                "message": "Bilet başarıyla eklendi!",
-                "id": "mock-ticket-id"
-            })
+        "message": "Bilet başarıyla eklendi!",
+        "id": "mock-ticket-id"},
+    status_code=201)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostTicketsAsyncClient)
 
