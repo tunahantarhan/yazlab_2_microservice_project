@@ -38,7 +38,7 @@ async def tickets():
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
-@app.post("/tickets", status_code=201)
+@app.post("/tickets")
 async def create_ticket(ticket: dict = Body(...)):
     try:
         async with httpx.AsyncClient() as client:
@@ -46,7 +46,10 @@ async def create_ticket(ticket: dict = Body(...)):
                 "http://ticket_service:8000/tickets",
                 json=ticket
             )
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
