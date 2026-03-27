@@ -137,7 +137,10 @@ async def delete_user(user_id: int):
             response = await client.delete(
                 f"http://user_service:8000/users/{user_id}"
             )
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
