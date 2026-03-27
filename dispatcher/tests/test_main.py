@@ -338,9 +338,12 @@ def test_dispatcher_forwards_delete_user_request(monkeypatch):
 
         async def delete(self, url):
             assert url == "http://user_service:8000/users/1"
-            return MockResponse({
-                "message": "Kullanıcı ID:'1' başarıyla silindi."
-            })
+            return MockResponse(
+    {
+        "message": "Kullanıcı ID:'1' başarıyla silindi."
+    },
+    status_code=200
+)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteUsersAsyncClient)
 
