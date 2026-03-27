@@ -275,11 +275,14 @@ def test_dispatcher_forwards_update_user_request(monkeypatch):
             assert json == {
                 "balance": 1000.0
             }
-            return MockResponse({
-                "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
-                "user_id": 1,
-                "new_balance": 1000.0
-            })
+            return MockResponse(
+    {
+        "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
+        "user_id": 1,
+        "new_balance": 1000.0
+    },
+    status_code=200
+)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchUsersAsyncClient)
 
