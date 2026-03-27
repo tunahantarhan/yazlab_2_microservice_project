@@ -490,3 +490,32 @@ def test_dispatcher_preserves_ticket_patch_404_status(monkeypatch):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Ticket not found"}
+
+def test_dispatcher_preserves_user_patch_404_status(monkeypatch):
+    class Mock404Response:
+        status_code = 404
+
+        def json(self):
+            return {"detail": "User not found"}
+
+    class MockPatchAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def patch(self, url, json):
+            assert url == "http://user_service:8000/users/1"
+            return Mock404Response()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchAsyncClient)
+
+    response = client.patch(
+        "/users/1",
+        headers={"Authorization": "Bearer valid-token"},
+        json={"balance": 1000.0}
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "User not found"}
