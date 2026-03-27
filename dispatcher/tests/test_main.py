@@ -309,9 +309,12 @@ def test_dispatcher_forwards_delete_ticket_request(monkeypatch):
 
         async def delete(self, url):
             assert url == "http://ticket_service:8000/tickets/1"
-            return MockResponse({
-                "message": "Bilet ID:'1' başarıyla silindi."
-            })
+            return MockResponse(
+    {
+        "message": "Bilet ID:'1' başarıyla silindi."
+    },
+    status_code=200
+)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteTicketsAsyncClient)
 
