@@ -77,7 +77,10 @@ async def delete_ticket(ticket_id: int):
             response = await client.delete(
                 f"http://ticket_service:8000/tickets/{ticket_id}"
             )
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
