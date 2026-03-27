@@ -522,3 +522,31 @@ def test_dispatcher_preserves_user_patch_404_status(monkeypatch):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
+
+def test_dispatcher_preserves_ticket_delete_404_status(monkeypatch):
+    class Mock404Response:
+        status_code = 404
+
+        def json(self):
+            return {"detail": "Ticket not found"}
+
+    class MockDeleteAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def delete(self, url):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return Mock404Response()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteAsyncClient)
+
+    response = client.delete(
+        "/tickets/1",
+        headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ticket not found"}
