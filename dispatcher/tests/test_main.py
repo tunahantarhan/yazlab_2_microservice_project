@@ -1,6 +1,8 @@
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 from fastapi.testclient import TestClient
 from main import app
 import main as main_module
@@ -8,11 +10,9 @@ import main as main_module
 client = TestClient(app)
 
 
-def test_read_main():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Dispatcher çalışıyor."}
-
+# =========================
+# ORTAK MOCK YAPILARI
+# =========================
 
 class MockResponse:
     def __init__(self, data, status_code=200):
@@ -23,32 +23,99 @@ class MockResponse:
         return self._data
 
 
-class MockTicketsAsyncClient:
+class BaseAsyncClient:
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         pass
 
+
+class FailingAsyncClient(BaseAsyncClient):
     async def get(self, url):
-        assert url == "http://ticket_service:8000/tickets"
-        return MockResponse([
-            {
-                "id": 1,
-                "event_name": "Konser",
-                "price": 250.0,
-                "available": True
-            }
-        ])
+        raise Exception("Service down")
+
+    async def post(self, url, json):
+        raise Exception("Service down")
+
+    async def patch(self, url, json):
+        raise Exception("Service down")
+
+    async def delete(self, url):
+        raise Exception("Service down")
 
 
-def test_dispatcher_forwards_tickets_request(monkeypatch):
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockTicketsAsyncClient)
+# =========================
+# HELPER FONKSİYONLAR
+# =========================
 
+VALID_HEADERS = {"Authorization": "Bearer valid-token"}
+
+
+def auth_get(path: str):
+    return client.get(path, headers=VALID_HEADERS)
+
+
+def auth_post(path: str, payload: dict):
+    return client.post(path, headers=VALID_HEADERS, json=payload)
+
+
+def auth_patch(path: str, payload: dict):
+    return client.patch(path, headers=VALID_HEADERS, json=payload)
+
+
+def auth_delete(path: str):
+    return client.delete(path, headers=VALID_HEADERS)
+
+
+# =========================
+# TEMEL TESTLER
+# =========================
+
+def test_read_main():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"message": "Dispatcher çalışıyor."}
+
+
+def test_request_without_token_returns_401():
+    response = client.get("/tickets")
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Unauthorized"}
+
+
+def test_request_with_invalid_token_returns_403():
     response = client.get(
         "/tickets",
-        headers={"Authorization": "Bearer valid-token"}
+        headers={"Authorization": "Bearer invalid"}
     )
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Forbidden"}
+
+
+# =========================
+# GET /tickets
+# =========================
+
+def test_dispatcher_forwards_tickets_request(monkeypatch):
+    class MockTicketsAsyncClient(BaseAsyncClient):
+        async def get(self, url):
+            assert url == "http://ticket_service:8000/tickets"
+            return MockResponse(
+                [
+                    {
+                        "id": 1,
+                        "event_name": "Konser",
+                        "price": 250.0,
+                        "available": True
+                    }
+                ],
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockTicketsAsyncClient)
+
+    response = auth_get("/tickets")
 
     assert response.status_code == 200
     assert response.json() == [
@@ -61,98 +128,38 @@ def test_dispatcher_forwards_tickets_request(monkeypatch):
     ]
 
 
-class MockUsersAsyncClient:
-    async def __aenter__(self):
-        return self
+def test_dispatcher_preserves_ticket_service_404_status(monkeypatch):
+    class Mock404AsyncClient(BaseAsyncClient):
+        async def get(self, url):
+            assert url == "http://ticket_service:8000/tickets"
+            return MockResponse(
+                {"detail": "Ticket not found"},
+                status_code=404
+            )
 
-    async def __aexit__(self, exc_type, exc, tb):
-        pass
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", Mock404AsyncClient)
 
-    async def get(self, url):
-        assert url == "http://user_service:8000/users"
-        return MockResponse([
-            {
-                "id": 1,
-                "username": "selin",
-                "email": "selin@example.com",
-                "balance": 500.0
-            }
-        ])
+    response = auth_get("/tickets")
 
-
-def test_dispatcher_forwards_users_request(monkeypatch):
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockUsersAsyncClient)
-
-    response = client.get(
-        "/users",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 200
-    assert response.json() == [
-        {
-            "id": 1,
-            "username": "selin",
-            "email": "selin@example.com",
-            "balance": 500.0
-        }
-    ]
-
-
-class FailingAsyncClient:
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        pass
-
-    async def get(self, url):
-        raise Exception("Service down")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ticket not found"}
 
 
 def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
     monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
 
-    response = client.get(
-        "/tickets",
-        headers={"Authorization": "Bearer valid-token"}
-    )
+    response = auth_get("/tickets")
 
     assert response.status_code == 502
+    assert response.json() == {"detail": "Ticket servisine ulaşılamadı."}
 
 
-def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
-
-    response = client.get(
-        "/users",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 502
-
-
-def test_request_without_token_returns_401():
-    response = client.get("/tickets")
-    assert response.status_code == 401
-
-
-def test_request_with_invalid_token_returns_403():
-    response = client.get(
-        "/tickets",
-        headers={"Authorization": "Bearer invalid"}
-    )
-    assert response.status_code == 403
-
+# =========================
+# POST /tickets
+# =========================
 
 def test_dispatcher_forwards_create_ticket_request(monkeypatch):
-    class MockPostTicketsAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
+    class MockPostTicketsAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
             assert url == "http://ticket_service:8000/tickets"
             assert json == {
@@ -161,17 +168,19 @@ def test_dispatcher_forwards_create_ticket_request(monkeypatch):
                 "price": 250.0,
                 "available": True
             }
-            return MockResponse({
-        "message": "Bilet başarıyla eklendi!",
-        "id": "mock-ticket-id"},
-    status_code=201)
+            return MockResponse(
+                {
+                    "message": "Bilet başarıyla eklendi!",
+                    "id": "mock-ticket-id"
+                },
+                status_code=201
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostTicketsAsyncClient)
 
-    response = client.post(
+    response = auth_post(
         "/tickets",
-        headers={"Authorization": "Bearer valid-token"},
-        json={
+        {
             "id": 1,
             "event_name": "Konser",
             "price": 250.0,
@@ -185,14 +194,178 @@ def test_dispatcher_forwards_create_ticket_request(monkeypatch):
         "id": "mock-ticket-id"
     }
 
+
+def test_dispatcher_preserves_ticket_post_400_status(monkeypatch):
+    class MockPostAsyncClient(BaseAsyncClient):
+        async def post(self, url, json):
+            assert url == "http://ticket_service:8000/tickets"
+            return MockResponse(
+                {"detail": "Invalid ticket data"},
+                status_code=400
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
+
+    response = auth_post("/tickets", {"wrong": "data"})
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid ticket data"}
+
+
+# =========================
+# PATCH /tickets
+# =========================
+
+def test_dispatcher_forwards_update_ticket_request(monkeypatch):
+    class MockPatchTicketsAsyncClient(BaseAsyncClient):
+        async def patch(self, url, json):
+            assert url == "http://ticket_service:8000/tickets/1"
+            assert json == {"available": False}
+            return MockResponse(
+                {
+                    "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
+                    "ticket_id": 1,
+                    "available": False
+                },
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchTicketsAsyncClient)
+
+    response = auth_patch("/tickets/1", {"available": False})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
+        "ticket_id": 1,
+        "available": False
+    }
+
+
+def test_dispatcher_preserves_ticket_patch_404_status(monkeypatch):
+    class MockPatchAsyncClient(BaseAsyncClient):
+        async def patch(self, url, json):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return MockResponse(
+                {"detail": "Ticket not found"},
+                status_code=404
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchAsyncClient)
+
+    response = auth_patch("/tickets/1", {"available": False})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ticket not found"}
+
+
+# =========================
+# DELETE /tickets
+# =========================
+
+def test_dispatcher_forwards_delete_ticket_request(monkeypatch):
+    class MockDeleteTicketsAsyncClient(BaseAsyncClient):
+        async def delete(self, url):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return MockResponse(
+                {"message": "Bilet ID:'1' başarıyla silindi."},
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteTicketsAsyncClient)
+
+    response = auth_delete("/tickets/1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Bilet ID:'1' başarıyla silindi."
+    }
+
+
+def test_dispatcher_preserves_ticket_delete_404_status(monkeypatch):
+    class MockDeleteAsyncClient(BaseAsyncClient):
+        async def delete(self, url):
+            assert url == "http://ticket_service:8000/tickets/1"
+            return MockResponse(
+                {"detail": "Ticket not found"},
+                status_code=404
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteAsyncClient)
+
+    response = auth_delete("/tickets/1")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Ticket not found"}
+
+
+# =========================
+# GET /users
+# =========================
+
+def test_dispatcher_forwards_users_request(monkeypatch):
+    class MockUsersAsyncClient(BaseAsyncClient):
+        async def get(self, url):
+            assert url == "http://user_service:8000/users"
+            return MockResponse(
+                [
+                    {
+                        "id": 1,
+                        "username": "selin",
+                        "email": "selin@example.com",
+                        "balance": 500.0
+                    }
+                ],
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockUsersAsyncClient)
+
+    response = auth_get("/users")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "id": 1,
+            "username": "selin",
+            "email": "selin@example.com",
+            "balance": 500.0
+        }
+    ]
+
+
+def test_dispatcher_preserves_user_service_404_status(monkeypatch):
+    class Mock404AsyncClient(BaseAsyncClient):
+        async def get(self, url):
+            assert url == "http://user_service:8000/users"
+            return MockResponse(
+                {"detail": "User not found"},
+                status_code=404
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", Mock404AsyncClient)
+
+    response = auth_get("/users")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "User not found"}
+
+
+def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", FailingAsyncClient)
+
+    response = auth_get("/users")
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "User servisine ulaşılamadı."}
+
+
+# =========================
+# POST /users
+# =========================
+
 def test_dispatcher_forwards_create_user_request(monkeypatch):
-    class MockPostUsersAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
+    class MockPostUsersAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
             assert url == "http://user_service:8000/users"
             assert json == {
@@ -201,17 +374,19 @@ def test_dispatcher_forwards_create_user_request(monkeypatch):
                 "email": "selin@example.com",
                 "balance": 500.0
             }
-            return MockResponse({
-        "message": "Kullanıcı başarıyla eklendi!",
-        "id": "mock-user-id"},
-    status_code=201 )
+            return MockResponse(
+                {
+                    "message": "Kullanıcı başarıyla eklendi!",
+                    "id": "mock-user-id"
+                },
+                status_code=201
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostUsersAsyncClient)
 
-    response = client.post(
+    response = auth_post(
         "/users",
-        headers={"Authorization": "Bearer valid-token"},
-        json={
+        {
             "id": 1,
             "username": "selin",
             "email": "selin@example.com",
@@ -225,362 +400,106 @@ def test_dispatcher_forwards_create_user_request(monkeypatch):
         "id": "mock-user-id"
     }
 
-def test_dispatcher_forwards_update_ticket_request(monkeypatch):
-    class MockPatchTicketsAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def patch(self, url, json):
-            assert url == "http://ticket_service:8000/tickets/1"
-            assert json == {
-                "available": False
-            }
-            return MockResponse(
-                {
-                    "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
-                    "ticket_id": 1,
-                    "available": False
-                },
-                status_code=200
-            )
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchTicketsAsyncClient)
-
-    response = client.patch(
-        "/tickets/1",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"available": False}
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "message": "Bilet müsaitlik durumu başarıyla güncellendi!",
-        "ticket_id": 1,
-        "available": False
-    }
-
-def test_dispatcher_forwards_update_user_request(monkeypatch):
-    class MockPatchUsersAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def patch(self, url, json):
-            assert url == "http://user_service:8000/users/1"
-            assert json == {
-                "balance": 1000.0
-            }
-            return MockResponse(
-    {
-        "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
-        "user_id": 1,
-        "new_balance": 1000.0
-    },
-    status_code=200
-)
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchUsersAsyncClient)
-
-    response = client.patch(
-        "/users/1",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"balance": 1000.0}
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
-        "user_id": 1,
-        "new_balance": 1000.0
-    }
-
-def test_dispatcher_forwards_delete_ticket_request(monkeypatch):
-    class MockDeleteTicketsAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def delete(self, url):
-            assert url == "http://ticket_service:8000/tickets/1"
-            return MockResponse(
-    {
-        "message": "Bilet ID:'1' başarıyla silindi."
-    },
-    status_code=200
-)
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteTicketsAsyncClient)
-
-    response = client.delete(
-        "/tickets/1",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "message": "Bilet ID:'1' başarıyla silindi."
-    }
-
-def test_dispatcher_forwards_delete_user_request(monkeypatch):
-    class MockDeleteUsersAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def delete(self, url):
-            assert url == "http://user_service:8000/users/1"
-            return MockResponse(
-    {
-        "message": "Kullanıcı ID:'1' başarıyla silindi."
-    },
-    status_code=200
-)
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteUsersAsyncClient)
-
-    response = client.delete(
-        "/users/1",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "message": "Kullanıcı ID:'1' başarıyla silindi."
-    }
-
-def test_dispatcher_preserves_ticket_service_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
-
-        def json(self):
-            return {"detail": "Ticket not found"}
-
-    class Mock404AsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def get(self, url):
-            assert url == "http://ticket_service:8000/tickets"
-            return Mock404Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", Mock404AsyncClient)
-
-    response = client.get(
-        "/tickets",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Ticket not found"}
-
-def test_dispatcher_preserves_user_service_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
-
-        def json(self):
-            return {"detail": "User not found"}
-
-    class Mock404AsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def get(self, url):
-            assert url == "http://user_service:8000/users"
-            return Mock404Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", Mock404AsyncClient)
-
-    response = client.get(
-        "/users",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "User not found"}
-
-def test_dispatcher_preserves_ticket_post_400_status(monkeypatch):
-    class Mock400Response:
-        status_code = 400
-
-        def json(self):
-            return {"detail": "Invalid ticket data"}
-
-    class MockPostAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def post(self, url, json):
-            assert url == "http://ticket_service:8000/tickets"
-            return Mock400Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
-
-    response = client.post(
-        "/tickets",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"wrong": "data"}
-    )
-
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Invalid ticket data"}
 
 def test_dispatcher_preserves_user_post_400_status(monkeypatch):
-    class Mock400Response:
-        status_code = 400
-
-        def json(self):
-            return {"detail": "Invalid user data"}
-
-    class MockPostAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
+    class MockPostAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
             assert url == "http://user_service:8000/users"
-            return Mock400Response()
+            return MockResponse(
+                {"detail": "Invalid user data"},
+                status_code=400
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
 
-    response = client.post(
-        "/users",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"wrong": "data"}
-    )
+    response = auth_post("/users", {"wrong": "data"})
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid user data"}
 
-def test_dispatcher_preserves_ticket_patch_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
 
-        def json(self):
-            return {"detail": "Ticket not found"}
+# =========================
+# PATCH /users
+# =========================
 
-    class MockPatchAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def patch(self, url, json):
-            assert url == "http://ticket_service:8000/tickets/1"
-            return Mock404Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchAsyncClient)
-
-    response = client.patch(
-        "/tickets/1",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"available": False}
-    )
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Ticket not found"}
-
-def test_dispatcher_preserves_user_patch_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
-
-        def json(self):
-            return {"detail": "User not found"}
-
-    class MockPatchAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
+def test_dispatcher_forwards_update_user_request(monkeypatch):
+    class MockPatchUsersAsyncClient(BaseAsyncClient):
         async def patch(self, url, json):
             assert url == "http://user_service:8000/users/1"
-            return Mock404Response()
+            assert json == {"balance": 1000.0}
+            return MockResponse(
+                {
+                    "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
+                    "user_id": 1,
+                    "new_balance": 1000.0
+                },
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchUsersAsyncClient)
+
+    response = auth_patch("/users/1", {"balance": 1000.0})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Kullanıcı bakiyesi başarıyla güncellendi!",
+        "user_id": 1,
+        "new_balance": 1000.0
+    }
+
+
+def test_dispatcher_preserves_user_patch_404_status(monkeypatch):
+    class MockPatchAsyncClient(BaseAsyncClient):
+        async def patch(self, url, json):
+            assert url == "http://user_service:8000/users/1"
+            return MockResponse(
+                {"detail": "User not found"},
+                status_code=404
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPatchAsyncClient)
 
-    response = client.patch(
-        "/users/1",
-        headers={"Authorization": "Bearer valid-token"},
-        json={"balance": 1000.0}
-    )
+    response = auth_patch("/users/1", {"balance": 1000.0})
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
 
-def test_dispatcher_preserves_ticket_delete_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
 
-        def json(self):
-            return {"detail": "Ticket not found"}
+# =========================
+# DELETE /users
+# =========================
 
-    class MockDeleteAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def delete(self, url):
-            assert url == "http://ticket_service:8000/tickets/1"
-            return Mock404Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteAsyncClient)
-
-    response = client.delete(
-        "/tickets/1",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Ticket not found"}
-
-def test_dispatcher_preserves_user_delete_404_status(monkeypatch):
-    class Mock404Response:
-        status_code = 404
-
-        def json(self):
-            return {"detail": "User not found"}
-
-    class MockDeleteAsyncClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
+def test_dispatcher_forwards_delete_user_request(monkeypatch):
+    class MockDeleteUsersAsyncClient(BaseAsyncClient):
         async def delete(self, url):
             assert url == "http://user_service:8000/users/1"
-            return Mock404Response()
+            return MockResponse(
+                {"message": "Kullanıcı ID:'1' başarıyla silindi."},
+                status_code=200
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteUsersAsyncClient)
+
+    response = auth_delete("/users/1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Kullanıcı ID:'1' başarıyla silindi."
+    }
+
+
+def test_dispatcher_preserves_user_delete_404_status(monkeypatch):
+    class MockDeleteAsyncClient(BaseAsyncClient):
+        async def delete(self, url):
+            assert url == "http://user_service:8000/users/1"
+            return MockResponse(
+                {"detail": "User not found"},
+                status_code=404
+            )
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockDeleteAsyncClient)
 
-    response = client.delete(
-        "/users/1",
-        headers={"Authorization": "Bearer valid-token"}
-    )
+    response = auth_delete("/users/1")
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
