@@ -8,7 +8,7 @@ app = FastAPI()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if request.url.path in ["/", "/auth"]:
+    if request.url.path in ["/", "/auth", "/metrics"]:
         return await call_next(request)
 
     auth_header = request.headers.get("Authorization")
