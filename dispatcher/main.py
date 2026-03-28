@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 import httpx
 
 app = FastAPI()
@@ -153,3 +154,5 @@ async def auth():
             return response.json()
     except Exception:
         raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
+
+Instrumentator().instrument(app).expose(app)
