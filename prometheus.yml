@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s # 5 saniyede bir veriler toplanacak
+
+scrape_configs:
+  - job_name: 'dispatcher'
+    static_configs:
+      - targets: ['dispatcher:8000'] # docker'daki dispatcher portu
