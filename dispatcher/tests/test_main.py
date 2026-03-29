@@ -30,12 +30,27 @@ class BaseAsyncClient:
     async def __aexit__(self, exc_type, exc, tb):
         pass
 
+    async def post(self, url, json):
+        # Auth middleware artık önce burayı çağırıyor
+        if url == "http://auth_service:8000/auth/verify":
+            token = json.get("token")
+
+            if token == "valid-token":
+                return MockResponse(
+                    {"valid": True, "role": "admin"},
+                    status_code=200
+                )
+
+            return MockResponse(
+                {"detail": "Geçersiz token."},
+                status_code=401
+            )
+
+        raise NotImplementedError(f"POST için mock tanımlanmadı: {url}")
+
 
 class FailingAsyncClient(BaseAsyncClient):
     async def get(self, url):
-        raise Exception("Service down")
-
-    async def post(self, url, json):
         raise Exception("Service down")
 
     async def patch(self, url, json):
@@ -84,13 +99,41 @@ def test_request_without_token_returns_401():
     assert response.json() == {"detail": "Unauthorized"}
 
 
-def test_request_with_invalid_token_returns_403():
+def test_request_with_invalid_token_returns_403(monkeypatch):
+    class MockInvalidAuthClient(BaseAsyncClient):
+        async def post(self, url, json):
+            assert url == "http://auth_service:8000/auth/verify"
+            assert json == {"token": "invalid"}
+            return MockResponse(
+                {"detail": "Geçersiz token."},
+                status_code=401
+            )
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockInvalidAuthClient)
+
     response = client.get(
         "/tickets",
         headers={"Authorization": "Bearer invalid"}
     )
+
     assert response.status_code == 403
     assert response.json() == {"detail": "Forbidden"}
+
+
+def test_request_with_valid_token_calls_auth_service(monkeypatch):
+    class MockAuthClient(BaseAsyncClient):
+        async def get(self, url):
+            assert url == "http://ticket_service:8000/tickets"
+            return MockResponse([], status_code=200)
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockAuthClient)
+
+    response = client.get(
+        "/tickets",
+        headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == 200
 
 
 # =========================
@@ -161,6 +204,12 @@ def test_dispatcher_returns_502_when_ticket_service_down(monkeypatch):
 def test_dispatcher_forwards_create_ticket_request(monkeypatch):
     class MockPostTicketsAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
+            if url == "http://auth_service:8000/auth/verify":
+                return MockResponse(
+                    {"valid": True, "role": "admin"},
+                    status_code=200
+                )
+
             assert url == "http://ticket_service:8000/tickets"
             assert json == {
                 "id": 1,
@@ -198,6 +247,12 @@ def test_dispatcher_forwards_create_ticket_request(monkeypatch):
 def test_dispatcher_preserves_ticket_post_400_status(monkeypatch):
     class MockPostAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
+            if url == "http://auth_service:8000/auth/verify":
+                return MockResponse(
+                    {"valid": True, "role": "admin"},
+                    status_code=200
+                )
+
             assert url == "http://ticket_service:8000/tickets"
             return MockResponse(
                 {"detail": "Invalid ticket data"},
@@ -367,6 +422,12 @@ def test_dispatcher_returns_502_when_user_service_down(monkeypatch):
 def test_dispatcher_forwards_create_user_request(monkeypatch):
     class MockPostUsersAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
+            if url == "http://auth_service:8000/auth/verify":
+                return MockResponse(
+                    {"valid": True, "role": "admin"},
+                    status_code=200
+                )
+
             assert url == "http://user_service:8000/users"
             assert json == {
                 "id": 1,
@@ -404,6 +465,12 @@ def test_dispatcher_forwards_create_user_request(monkeypatch):
 def test_dispatcher_preserves_user_post_400_status(monkeypatch):
     class MockPostAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
+            if url == "http://auth_service:8000/auth/verify":
+                return MockResponse(
+                    {"valid": True, "role": "admin"},
+                    status_code=200
+                )
+
             assert url == "http://user_service:8000/users"
             return MockResponse(
                 {"detail": "Invalid user data"},
@@ -503,38 +570,3 @@ def test_dispatcher_preserves_user_delete_404_status(monkeypatch):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
-
-def test_request_with_valid_token_calls_auth_service(monkeypatch):
-    class MockAuthClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb):
-            pass
-
-        async def post(self, url, json):
-            assert url == "http://auth_service:8000/auth/verify"
-            assert json == {"token": "valid-token"}
-
-            class Response:
-                status_code = 200
-                def json(self):
-                    return {"valid": True, "role": "admin"}
-
-            return Response()
-
-        async def get(self, url):
-            class Response:
-                status_code = 200
-                def json(self):
-                    return []
-            return Response()
-
-    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockAuthClient)
-
-    response = client.get(
-        "/tickets",
-        headers={"Authorization": "Bearer valid-token"}
-    )
-
-    assert response.status_code == 200
