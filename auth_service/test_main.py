@@ -33,3 +33,17 @@ def test_login_returns_401_for_invalid_credentials():
     assert response.json() == {
         "detail": "Geçersiz kullanıcı adı veya şifre."
     }
+
+def test_verify_returns_valid_true_for_valid_token():
+    response = client.post(
+        "/auth/verify",
+        json={
+            "token": "valid-token"
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "valid": True,
+        "role": "admin"
+    }
