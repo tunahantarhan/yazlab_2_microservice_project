@@ -503,3 +503,38 @@ def test_dispatcher_preserves_user_delete_404_status(monkeypatch):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "User not found"}
+
+def test_request_with_valid_token_calls_auth_service(monkeypatch):
+    class MockAuthClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+
+        async def post(self, url, json):
+            assert url == "http://auth_service:8000/auth/verify"
+            assert json == {"token": "valid-token"}
+
+            class Response:
+                status_code = 200
+                def json(self):
+                    return {"valid": True, "role": "admin"}
+
+            return Response()
+
+        async def get(self, url):
+            class Response:
+                status_code = 200
+                def json(self):
+                    return []
+            return Response()
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", MockAuthClient)
+
+    response = client.get(
+        "/tickets",
+        headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == 200
