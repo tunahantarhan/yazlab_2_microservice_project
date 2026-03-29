@@ -19,3 +19,17 @@ async def login(data: LoginRequest):
         }
 
     raise HTTPException(status_code=401, detail="Geçersiz kullanıcı adı veya şifre.")
+
+class VerifyRequest(BaseModel):
+    token: str
+
+
+@app.post("/auth/verify")
+async def verify(data: VerifyRequest):
+    if data.token == "valid-token":
+        return {
+            "valid": True,
+            "role": "admin"
+        }
+
+    raise HTTPException(status_code=401, detail="Geçersiz token.")
