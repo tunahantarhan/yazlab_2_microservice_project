@@ -47,3 +47,17 @@ def test_verify_returns_valid_true_for_valid_token():
         "valid": True,
         "role": "admin"
     }
+
+
+def test_verify_returns_401_for_invalid_token():
+    response = client.post(
+        "/auth/verify",
+        json={
+            "token": "wrong-token"
+        }
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Geçersiz token."
+    }
