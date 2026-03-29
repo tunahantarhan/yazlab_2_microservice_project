@@ -15,8 +15,28 @@ async def auth_middleware(request: Request, call_next):
     if not auth_header:
         return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
 
-    if auth_header != "Bearer valid-token":
-        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    token = auth_header.replace("Bearer ", "")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://auth_service:8000/auth/verify",
+                json={"token": token}
+            )
+
+            if response.status_code != 200:
+                return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+            data = response.json()
+
+            if not data.get("valid"):
+                return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+
+    except Exception:
+        return JSONResponse(
+            status_code=502,
+            content={"detail": "Auth servisine ulaşılamadı."}
+        )
 
     return await call_next(request)
 
@@ -151,8 +171,12 @@ async def auth():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get("http://auth_service:8000/auth")
-            return response.json()
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
     except Exception:
         raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
+
 
 Instrumentator().instrument(app).expose(app)
