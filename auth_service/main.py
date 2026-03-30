@@ -1,8 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
+from database import users_collection
+from security import verify_password, create_access_token, verify_token
+from init_db import create_initial_admin
+from contextlib import asynccontextmanager
 
-app = FastAPI()
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # başlangıçta ilk olarak init_db'deki db kontrol fonksiyonu çalışır
+    await create_initial_admin()
+    yield
+    
+app = FastAPI(lifespan=lifespan)
 
 class LoginRequest(BaseModel):
     username: str
@@ -11,25 +20,23 @@ class LoginRequest(BaseModel):
 
 @app.post("/auth/login")
 async def login(data: LoginRequest):
-    if data.username == "admin" and data.password == "1234":
-        return {
-            "access_token": "valid-token",
-            "token_type": "bearer",
-            "role": "admin"
-        }
+    # kullanıcı mongodb'den bulunur
+    user = await users_collection.find_one({"username": data.username})
+    
+    # kullanıcı bulunamazsa ya da şifresi uyuşmazsa 401 kodu geri döndürülür
+    if not user or not verify_password(data.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Geçersiz kullanıcı adı veya şifre."
+        )
 
-    raise HTTPException(status_code=401, detail="Geçersiz kullanıcı adı veya şifre.")
+    # her şey uygun ise gerçek json web token oluşturulur
+    access_token = create_access_token(
+        data={"sub": user["username"], "role": user["role"]}
+    )
 
-class VerifyRequest(BaseModel):
-    token: str
-
-
-@app.post("/auth/verify")
-async def verify(data: VerifyRequest):
-    if data.token == "valid-token":
-        return {
-            "valid": True,
-            "role": "admin"
-        }
-
-    raise HTTPException(status_code=401, detail="Geçersiz token.")
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": user["role"]
+    }
