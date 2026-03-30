@@ -1,8 +1,30 @@
 from fastapi.testclient import TestClient
 from main import app
+import pytest
+from security import get_password_hash, create_access_token
 
-client = TestClient(app)
+# mock veritabanı oluşturma
+class MockUsersCollection:
+    async def find_one(self, query):
+        if query.get("username") == "admin":
+            return {
+                "username": "admin",
+                "hashed_password": get_password_hash("1234"),
+                "role": "admin"
+            }
+        return None
 
+# testler öncesi mock veritabanının sisteme aktarılması
+@pytest.fixture(autouse=True)
+def mock_db(monkeypatch):
+    monkeypatch.setattr("main.users_collection", MockUsersCollection())
+    
+    # testlerde init_db'deki veritabanı kontrolü atlanıyor
+    async def mock_init():
+        pass
+    monkeypatch.setattr("main.create_initial_admin", mock_init)
+
+# ---- TESTLER ----
 
 def test_login_returns_token_for_valid_credentials():
     response = client.post(
