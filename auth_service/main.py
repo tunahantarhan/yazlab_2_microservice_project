@@ -40,3 +40,24 @@ async def login(data: LoginRequest):
         "token_type": "bearer",
         "role": user["role"]
     }
+    
+class VerifyRequest(BaseModel):
+    token: str
+
+@app.post("/auth/verify")
+async def verify(data: VerifyRequest):
+    # gelen kullanıcı token'ı çözülerek kontrol edilir
+    payload = verify_token(data.token)
+    
+    # token geçersizse ya da süresi dolmuşsa 401 kodu geri döndürülür
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Geçersiz veya süresi dolmuş token."
+        )
+
+    # her şey uygun ise payload'daki "role" döndürülür
+    return {
+        "valid": True,
+        "role": payload.get("role", "user")
+    }
