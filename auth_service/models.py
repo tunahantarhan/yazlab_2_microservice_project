@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
 
-# kullanıcı sign up/sign in sırasında kullanılacak şema
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -11,4 +10,10 @@ class UserCreate(BaseModel):
 class UserInDB(BaseModel):
     username: str
     hashed_password: str
+    role: str
+
+# token dönerken kullanılacak klasik şema
+class Token(BaseModel):
+    access_token: str
+    token_type: str
     role: str
