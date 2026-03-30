@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 .vscode/
 load_tests/
+.DS_Store
