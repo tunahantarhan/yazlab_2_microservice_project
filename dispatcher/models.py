@@ -4,3 +4,14 @@ from typing import Optional
 class LoginModel(BaseModel):
     username: str
     password: str
+
+class TicketModel(BaseModel):
+    id: int
+    event_name: str
+    price: float
+    available: bool
+
+class TicketUpdateModel(BaseModel):
+    event_name: Optional[str] = None
+    price: Optional[float] = None
+    available: Optional[bool] = None
