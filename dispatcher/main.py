@@ -187,6 +187,22 @@ async def auth():
             )
     except Exception:
         raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
+    
+@app.post("/auth/login")
+async def login(credentials: dict = Body(...)):
+    try:
+        async with httpx.AsyncClient() as client:
+            # gelen kullanıcı bilgileri iç ağdaki auth servisine yönlendirilir
+            response = await client.post(
+                "http://auth_service:8000/auth/login",
+                json=credentials
+            )
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
+    except Exception:
+        raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
 
 
 Instrumentator().instrument(app).expose(app)
