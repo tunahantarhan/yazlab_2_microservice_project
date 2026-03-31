@@ -52,11 +52,13 @@ services:
     build: ./dispatcher
     container_name: dispatcher
     ports:
-      - "8002:8000"
+      - "8002:8000" # dışarıya açık tek yer
     depends_on:
       - ticket_service
       - user_service
       - auth_service
+    networks:
+      - yazlab_net
 
   prometheus:
     image: prom/prometheus:latest
@@ -64,14 +66,18 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "9090:9090"
+      - "9090:9090" # monitoring için açık olmalı
     depends_on:
       - dispatcher
+    networks:
+      - yazlab_net
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3000:3000" # monitoring için açık olmalı
     depends_on:
       - prometheus
+    networks:
+      - yazlab_net
