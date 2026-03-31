@@ -8,7 +8,17 @@ app = FastAPI()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if request.url.path in ["/", "/auth", "/metrics"]:
+    # token istemeyen rotalar listesi (white list)
+    public_paths = [
+        "/", 
+        "/auth", 
+        "/auth/login", 
+        "/metrics", 
+        "/docs", 
+        "/openapi.json", 
+        "/redoc"
+    ]
+    if request.url.path in public_paths:
         return await call_next(request)
 
     auth_header = request.headers.get("Authorization")
