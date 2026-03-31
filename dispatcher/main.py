@@ -4,6 +4,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import httpx
 from fastapi.security import HTTPBearer
 from fastapi import Depends
+from models import LoginModel, TicketModel, TicketUpdateModel, UserModel, UserUpdateModel
 
 app = FastAPI()
 security = HTTPBearer()
@@ -72,7 +73,7 @@ async def tickets():
 
 
 @app.post("/tickets", dependencies=[Depends(security)])
-async def create_ticket(ticket: dict = Body(...)):
+async def create_ticket(ticket: TicketModel):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -88,12 +89,13 @@ async def create_ticket(ticket: dict = Body(...)):
 
 
 @app.patch("/tickets/{ticket_id}")
-async def update_ticket(ticket_id: int, data: dict = Body(...)):
+async def update_ticket(ticket_id: int, data: TicketUpdateModel):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(
                 f"http://ticket_service:8000/tickets/{ticket_id}",
-                json=data
+                # sadece değişiklik yapılan alanlar yollanır
+                json=data.model_dump(exclude_unset=True)
             )
             return JSONResponse(
                 status_code=response.status_code,
@@ -132,7 +134,7 @@ async def users():
 
 
 @app.post("/users", dependencies=[Depends(security)])
-async def create_user(user: dict = Body(...)):
+async def create_user(user: UserModel):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -148,12 +150,13 @@ async def create_user(user: dict = Body(...)):
 
 
 @app.patch("/users/{user_id}", dependencies=[Depends(security)])
-async def update_user(user_id: int, data: dict = Body(...)):
+async def update_user(user_id: int, data: UserUpdateModel):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(
                 f"http://user_service:8000/users/{user_id}",
-                json=data
+                # sadece değişiklik yapılan alanlar yollanır
+                json=data.model_dump(exclude_unset=True)
             )
             return JSONResponse(
                 status_code=response.status_code,
@@ -191,7 +194,7 @@ async def auth():
         raise HTTPException(status_code=502, detail="Auth servisine ulaşılamadı.")
     
 @app.post("/auth/login")
-async def login(credentials: dict = Body(...)):
+async def login(credentials: LoginModel):
     try:
         async with httpx.AsyncClient() as client:
             # gelen kullanıcı bilgileri iç ağdaki auth servisine yönlendirilir
