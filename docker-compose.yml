@@ -7,14 +7,14 @@ services:
   ticket_db:
     image: mongo:latest
     container_name: ticket_db
-    ports:
-      - "27017:27017"
+    networks:
+      - yazlab_net
 
   user_db:
     image: mongo:latest
     container_name: user_db
-    ports:
-      - "27018:27017"
+    networks:
+      - yazlab_net
   
   auth_db:
     image: mongo:latest
@@ -25,8 +25,6 @@ services:
   ticket_service:
     build: ./ticket_service
     container_name: ticket_service
-    #ports:
-    #  - "8000:8000"
     depends_on:
       - ticket_db
     networks:
@@ -35,8 +33,6 @@ services:
   user_service:
     build: ./user_service
     container_name: user_service
-    #ports:
-    #  - "8001:8000"
     depends_on:
       - user_db
     networks:
@@ -51,8 +47,6 @@ services:
       - auth_db  # ayağa kalkmadan önce db'yi bekler
     networks:
       - yazlab_net
-    #ports:
-    #  - "8003:8000"
 
   dispatcher:
     build: ./dispatcher
