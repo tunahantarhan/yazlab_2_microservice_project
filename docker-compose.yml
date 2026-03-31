@@ -15,6 +15,12 @@ services:
     container_name: user_db
     ports:
       - "27018:27017"
+  
+  auth_db:
+    image: mongo:latest
+    container_name: auth_db
+    networks:
+      - yazlab_net
 
   ticket_service:
     build: ./ticket_service
