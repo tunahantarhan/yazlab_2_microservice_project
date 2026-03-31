@@ -2,9 +2,11 @@ from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 import httpx
+from fastapi.security import HTTPBearer
+from fastapi import Depends
 
 app = FastAPI()
-
+security = HTTPBearer()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -56,7 +58,7 @@ async def root():
     return {"message": "Dispatcher çalışıyor."}
 
 
-@app.get("/tickets")
+@app.get("/tickets", dependencies=[Depends(security)])
 async def tickets():
     try:
         async with httpx.AsyncClient() as client:
@@ -69,7 +71,7 @@ async def tickets():
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
-@app.post("/tickets")
+@app.post("/tickets", dependencies=[Depends(security)])
 async def create_ticket(ticket: dict = Body(...)):
     try:
         async with httpx.AsyncClient() as client:
@@ -101,7 +103,7 @@ async def update_ticket(ticket_id: int, data: dict = Body(...)):
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
-@app.delete("/tickets/{ticket_id}")
+@app.delete("/tickets/{ticket_id}", dependencies=[Depends(security)])
 async def delete_ticket(ticket_id: int):
     try:
         async with httpx.AsyncClient() as client:
@@ -116,7 +118,7 @@ async def delete_ticket(ticket_id: int):
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
-@app.get("/users")
+@app.get("/users", dependencies=[Depends(security)])
 async def users():
     try:
         async with httpx.AsyncClient() as client:
@@ -129,7 +131,7 @@ async def users():
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
-@app.post("/users")
+@app.post("/users", dependencies=[Depends(security)])
 async def create_user(user: dict = Body(...)):
     try:
         async with httpx.AsyncClient() as client:
@@ -145,7 +147,7 @@ async def create_user(user: dict = Body(...)):
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
-@app.patch("/users/{user_id}")
+@app.patch("/users/{user_id}", dependencies=[Depends(security)])
 async def update_user(user_id: int, data: dict = Body(...)):
     try:
         async with httpx.AsyncClient() as client:
@@ -161,7 +163,7 @@ async def update_user(user_id: int, data: dict = Body(...)):
         raise HTTPException(status_code=502, detail="User servisine ulaşılamadı.")
 
 
-@app.delete("/users/{user_id}")
+@app.delete("/users/{user_id}", dependencies=[Depends(security)])
 async def delete_user(user_id: int):
     try:
         async with httpx.AsyncClient() as client:
