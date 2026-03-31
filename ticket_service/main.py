@@ -1,6 +1,6 @@
 from fastapi import FastAPI, status, HTTPException, Body
 from typing import List, Optional
-from models import Ticket # pydantic modeli models.py'den import ediliyor
+from models import Ticket, TicketUpdate # pydantic modeli models.py'den import ediliyor
 from database import ticket_collection
 
 app = FastAPI()
@@ -37,20 +37,26 @@ async def list_tickets(available: Optional[bool] = None):
 
 # RMM Seviye 2 -> kısmi güncelleme (bilet availability) işlemleri için "PATCH" metodu
 @app.patch(f"{tickets_root}/{{ticket_id}}", status_code=status.HTTP_200_OK)
-async def update_ticket_status(ticket_id: int, available: bool = Body(..., embed=True)):
-    # id'si eşleşen ticket'ın sadece "available" kısmı güncellenir
+async def update_ticket(ticket_id: int, update_data: TicketUpdate):
+    # sadece kullanıcı tarafından değiştirilen/girilen kısımlar dict'e çevrilir
+    update_dict = update_data.model_dump(exclude_unset=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="Güncellenecek veri sağlanmadı.")
+
+    # sadece update dictionary'sinin içindekiler güncellenir
     result = await ticket_collection.update_one(
         {"id": ticket_id},
-        {"$set": {"available": available}}
+        {"$set": update_dict}
     )
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Güncellenecek bilet bulunamadı.")
         
     return {
-        "message": "Bilet müsaitlik durumu başarıyla güncellendi!", 
+        "message": "Bilet başarıyla güncellendi!", 
         "ticket_id": ticket_id, 
-        "available": available
+        "updated_fields": update_dict
     }
     
 # RMM Seviye 2 -> bilet kaydı silme işlemleri için "DELETE" metodu
