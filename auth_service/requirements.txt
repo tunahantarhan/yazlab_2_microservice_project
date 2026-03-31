@@ -4,5 +4,6 @@ pydantic
 pytest
 httpx
 motor
-passlib[bcrypt]
+passlib
+bcrypt==3.2.2 # stabil sürüm
 PyJWT
