@@ -78,7 +78,7 @@ async def create_ticket(ticket: TicketModel):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "http://ticket_service:8000/tickets",
-                json=ticket
+                json=ticket.model_dump()
             )
             return JSONResponse(
                 status_code=response.status_code,
@@ -88,7 +88,7 @@ async def create_ticket(ticket: TicketModel):
         raise HTTPException(status_code=502, detail="Ticket servisine ulaşılamadı.")
 
 
-@app.patch("/tickets/{ticket_id}")
+@app.patch("/tickets/{ticket_id}", dependencies=[Depends(security)])
 async def update_ticket(ticket_id: int, data: TicketUpdateModel):
     try:
         async with httpx.AsyncClient() as client:
@@ -139,7 +139,7 @@ async def create_user(user: UserModel):
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "http://user_service:8000/users",
-                json=user
+                json=user.model_dump()
             )
             return JSONResponse(
                 status_code=response.status_code,
@@ -200,7 +200,7 @@ async def login(credentials: LoginModel):
             # gelen kullanıcı bilgileri iç ağdaki auth servisine yönlendirilir
             response = await client.post(
                 "http://auth_service:8000/auth/login",
-                json=credentials
+                json=credentials.model_dump()
             )
             return JSONResponse(
                 status_code=response.status_code,
