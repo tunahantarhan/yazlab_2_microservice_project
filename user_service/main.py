@@ -1,6 +1,6 @@
 from fastapi import FastAPI, status, HTTPException, Body
 from typing import List
-from models import User # pydantic modeli models.py'den import ediliyor
+from models import User, UserUpdate # pydantic modeli models.py'den import ediliyor
 from database import user_collection
 
 app = FastAPI()
@@ -30,20 +30,26 @@ async def list_users():
 
 # RMM Seviye 2 -> kısmı güncelleme (kullanıcı bakiyesi) işlemleri için "PATCH" metodu.
 @app.patch(f"{users_root}/{{user_id}}", status_code=status.HTTP_200_OK)
-async def update_user_balance(user_id: int, balance: float = Body(..., embed=True)):
-    # id'si eşleşen kullanıcının sadece "balance" kısmı güncellenir.
+async def update_user(user_id: int, update_data: UserUpdate):
+    # sadece kullanıcı tarafından değiştirilen/girilen kısımlar dict'e çevrilir
+    update_dict = update_data.model_dump(exclude_unset=True)
+    
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="Güncellenecek veri sağlanmadı.")
+
+    # sadece update dictionary'sinin içindekiler güncellenir
     result = await user_collection.update_one(
         {"id": user_id},
-        {"$set": {"balance": balance}}
+        {"$set": update_dict}
     )
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Güncellenecek kullanıcı bulunamadı.")
         
     return {
-        "message": "Kullanıcı bakiyesi başarıyla güncellendi!", 
+        "message": "Kullanıcı başarıyla güncellendi!", 
         "user_id": user_id, 
-        "new_balance": balance
+        "updated_fields": update_dict
     }
 
 # RMM Seviye 2 -> kullanıcı kaydı silme işlemleri için "DELETE" metodu.
