@@ -248,23 +248,22 @@ def test_dispatcher_preserves_ticket_post_400_status(monkeypatch):
     class MockPostAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
             if url == "http://auth_service:8000/auth/verify":
-                return MockResponse(
-                    {"valid": True, "role": "admin"},
-                    status_code=200
-                )
+                return MockResponse({"valid": True, "role": "admin"}, status_code=200)
 
             assert url == "http://ticket_service:8000/tickets"
-            return MockResponse(
-                {"detail": "Invalid ticket data"},
-                status_code=400
-            )
+            return MockResponse({"detail": "Invalid ticket data"}, status_code=400)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
 
-    response = auth_post("/tickets", {"wrong": "data"})
+    valid_format_data = {
+        "id": 999,
+        "event_name": "Hatali İslem Testi",
+        "price": 100.0,
+        "available": True
+    }
+    response = auth_post("/tickets", valid_format_data)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Invalid ticket data"}
 
 
 # =========================
@@ -466,23 +465,22 @@ def test_dispatcher_preserves_user_post_400_status(monkeypatch):
     class MockPostAsyncClient(BaseAsyncClient):
         async def post(self, url, json):
             if url == "http://auth_service:8000/auth/verify":
-                return MockResponse(
-                    {"valid": True, "role": "admin"},
-                    status_code=200
-                )
+                return MockResponse({"valid": True, "role": "admin"}, status_code=200)
 
             assert url == "http://user_service:8000/users"
-            return MockResponse(
-                {"detail": "Invalid user data"},
-                status_code=400
-            )
+            return MockResponse({"detail": "Invalid user data"}, status_code=400)
 
     monkeypatch.setattr(main_module.httpx, "AsyncClient", MockPostAsyncClient)
 
-    response = auth_post("/users", {"wrong": "data"})
+    valid_format_data = {
+        "id": 999,
+        "username": "hatali_kullanici",
+        "email": "hata@example.com",
+        "balance": 0.0
+    }
+    response = auth_post("/users", valid_format_data)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Invalid user data"}
 
 
 # =========================

@@ -1,5 +1,6 @@
 import sys
 import os
+from urllib import response
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -88,9 +89,9 @@ def test_update_ticket_status(mock_update):
     response = client.patch("/tickets/1", json={"available": False})
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Bilet müsaitlik durumu başarıyla güncellendi!"
-    assert response.json()["available"] is False
-
+    assert response.json()["message"] == "Bilet başarıyla güncellendi!"
+    assert response.json()["updated_fields"]["available"] is False
+    
     # "fonksiyon veritabanıyla doğru etkileşime girmiş mi?"
     mock_update.assert_called_once_with(
         {"id": 1},

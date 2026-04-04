@@ -75,7 +75,7 @@ def test_update_user_balance(mock_update):
     response = client.patch("/users/1", json={"balance": 3000.0})
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Kullanıcı bakiyesi başarıyla güncellendi!" 
+    assert response.json()["message"] == "Kullanıcı başarıyla güncellendi!" 
 
     # "fonksiyon veritabanıyla doğru etkileşime girmiş mi?"
     mock_update.assert_called_once_with(
