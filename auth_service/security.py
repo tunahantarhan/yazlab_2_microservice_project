@@ -7,7 +7,7 @@ import jwt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # token oluşturma (jwt) ayarları
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "gizli-auth-anahtari")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "gizli-json-web-token-auth-anahtari")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30  # token yarım saat geçerli olur
 
